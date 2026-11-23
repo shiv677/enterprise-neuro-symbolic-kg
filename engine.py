@@ -89,14 +89,15 @@ def _similarity_score(query: str, target: str) -> float:
     if not q_norm or not t_norm:
         return 0.0
 
-    if t_norm in q_norm or q_norm in t_norm:
-        ratio = min(len(t_norm), len(q_norm)) / max(len(t_norm), len(q_norm))
-        return 0.8 + 0.2 * ratio
-
     q_words = set(re.findall(r"\w+", q_norm))
     t_words = set(re.findall(r"\w+", t_norm))
     if not q_words or not t_words:
         return 0.0
+
+    if min(len(t_norm), len(q_norm)) >= 4 and (t_words <= q_words or q_words <= t_words):
+        if t_norm in q_norm or q_norm in t_norm:
+            ratio = min(len(t_norm), len(q_norm)) / max(len(t_norm), len(q_norm))
+            return 0.8 + 0.2 * ratio
 
     word_jaccard = len(q_words & t_words) / len(q_words | t_words)
 
@@ -162,7 +163,7 @@ class NeuroSymbolicKG:
         filter_predicates: list[str] | None = None,
     ) -> TraversalResult:
         """Traverse graph outward from start_entity up to k hops using breadth-first search."""
-        if start_entity not in self.entities and start_entity not in self.adj:
+        if start_entity not in self.entities and start_entity not in self.adj and start_entity not in self.inv_adj:
             return TraversalResult(
                 start_entity=start_entity,
                 k_hops=k,
@@ -186,7 +187,10 @@ class NeuroSymbolicKG:
             if hops >= k:
                 continue
 
-            for edge in self.adj.get(curr_node, []):
+            neighbors = [(e, e.object) for e in self.adj.get(curr_node, [])] + [
+                (e, e.subject) for e in self.inv_adj.get(curr_node, [])
+            ]
+            for edge, next_node in neighbors:
                 if filter_predicates and edge.predicate not in filter_predicates:
                     continue
 
@@ -195,7 +199,6 @@ class NeuroSymbolicKG:
                     seen_edges.add(edge_key)
                     visited_edges.append(edge)
 
-                next_node = edge.object
                 visited_nodes.add(next_node)
                 next_path_nodes = path_nodes + [next_node]
                 next_path_edges = path_edges + [edge]

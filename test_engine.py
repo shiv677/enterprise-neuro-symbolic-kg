@@ -61,11 +61,10 @@ def test_add_entity_and_triple_indexing():
 
 def test_k_hop_bfs_traversal_and_cycles():
     kg = NeuroSymbolicKG()
-    # A -> B -> C -> D and cycle D -> A
+    # A -> B -> C -> D
     kg.add_triple(Triple(subject="NodeA", predicate="links_to", object="NodeB"))
     kg.add_triple(Triple(subject="NodeB", predicate="links_to", object="NodeC"))
     kg.add_triple(Triple(subject="NodeC", predicate="links_to", object="NodeD"))
-    kg.add_triple(Triple(subject="NodeD", predicate="links_to", object="NodeA"))  # Cycle
 
     # 1 hop
     res_1 = kg.k_hop_bfs("NodeA", k=1)
@@ -79,7 +78,8 @@ def test_k_hop_bfs_traversal_and_cycles():
     assert set(res_2.visited_nodes) == {"NodeA", "NodeB", "NodeC"}
     assert len(res_2.visited_edges) == 2
 
-    # 3 hops (touches D)
+    # 3 hops (touches D, with cycle D -> A)
+    kg.add_triple(Triple(subject="NodeD", predicate="links_to", object="NodeA"))  # Cycle
     res_3 = kg.k_hop_bfs("NodeA", k=3)
     assert set(res_3.visited_nodes) == {"NodeA", "NodeB", "NodeC", "NodeD"}
     assert any(p.total_hops == 3 for p in res_3.paths)
@@ -88,6 +88,21 @@ def test_k_hop_bfs_traversal_and_cycles():
     kg.add_triple(Triple(subject="NodeA", predicate="audits", object="NodeZ"))
     res_filtered = kg.k_hop_bfs("NodeA", k=1, filter_predicates=["links_to"])
     assert "NodeZ" not in res_filtered.visited_nodes
+
+
+def test_bidirectional_incoming_bfs_and_short_property_similarity():
+    kg = NeuroSymbolicKG()
+    kg.add_entity(Entity(id="MegaCorp", name="MegaCorp Global", entity_type="Corp"))
+    kg.add_entity(Entity(id="NoisyEnt", name="Other", entity_type="T", properties={"code": "in", "tier": "1"}))
+    kg.add_triple(Triple(subject="FinTech Compliance Board", predicate="regulates", object="MegaCorp"))
+
+    res = kg.k_hop_bfs("MegaCorp", k=1)
+    assert "FinTech Compliance Board" in res.visited_nodes
+    assert any(e.predicate == "regulates" for e in res.visited_edges)
+
+    rag = kg.hybrid_retrieve("Who regulates MegaCorp Global in tier 1?", top_k_entities=1, k_hops=1)
+    assert rag.seed_entities[0].id == "MegaCorp"
+    assert any(t.subject == "FinTech Compliance Board" for t in rag.explicit_triples)
 
 
 def test_horn_rule_transitive_inference():

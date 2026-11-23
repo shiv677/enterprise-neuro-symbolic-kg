@@ -119,12 +119,12 @@ Microbenchmark on Python 3.12 (AMD64 / Windows):
 
 ### Microbenchmark Run
 ```bash
-python projects/enterprise_neuro_symbolic_kg/main.py --benchmark --iterations 100
+python main.py --benchmark --iterations 100
 ```
 
 ### Hybrid RAG Query
 ```bash
-python projects/enterprise_neuro_symbolic_kg/main.py --query "Which regulatory standards apply to DataEngine Core?" --k-hops 2
+python main.py --query "Which regulatory standards apply to DataEngine Core?" --k-hops 2
 ```
 
 ---
@@ -134,5 +134,5 @@ python projects/enterprise_neuro_symbolic_kg/main.py --query "Which regulatory s
 The test suite covers extraction, graph insertion, multi-hop BFS, cycle handling, transitive rule inference, multi-premise enterprise compliance deduction, fixpoint termination, semantic matching, and empty/edge conditions.
 
 ```bash
-pytest projects/enterprise_neuro_symbolic_kg/test_engine.py -v
+pytest test_engine.py -v
 ```
